@@ -18,7 +18,7 @@ int main()
   std::vector<double> gemm_tiling_avg_times;
 
   for (uint64_t dim_size = 512; dim_size <= 8192; dim_size *= 2) {
-//  for (uint64_t dim_size = 512; dim_size <= 4096; dim_size *= 2) {
+//  for (uint64_t dim_size = 512; dim_size <= 1024; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
     std::vector<double> no_tiling_exe_times;
     std::vector<double> tiling_exe_times;
@@ -92,7 +92,7 @@ int main()
                         C);
       auto tt_end = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> tt_duration = tt_end - tt_start;
-      std::cout << "FAM tiling dim_size: " << dim_size << ", r_i: " << r_i << ", time_exe(s): " << tt_duration.count() << "\n";
+      std::cout << "FAM soft-cache tiling dim_size: " << dim_size << ", r_i: " << r_i << ", time_exe(s): " << tt_duration.count() << "\n";
 
 //        print_matrix(C, C1, C2);
       tiling_exe_times.push_back(tt_duration.count());
@@ -105,7 +105,7 @@ int main()
     std::string tiling_filename;
     {
       std::stringstream ss;
-      ss << "output.gemm.fam.tiling.size" << dim_size << ".log";
+      ss << "output.gemm.fam.soft-cache.tiling.size" << dim_size << ".log";
       tiling_filename = ss.str();
     }
     save_exe_times_into_file(tiling_filename, tiling_exe_times);
@@ -120,7 +120,7 @@ int main()
   std::ofstream fout;
   fout.open(collect_filename);
   if (fout.is_open()) {
-    std::string header("Matrix_size,RAPID.No-Tiling(s),RAPID.Tiling(s)");
+    std::string header("Matrix_size,RAPID.No-Tiling(s),RAPID.SoftCache.Tiling(s)");
     fout << header << "\n";
     for (uint64_t row_i = 0; row_i < dim_sizes.size(); ++row_i) {
       fout << dim_sizes[row_i] << "," << gemm_no_tiling_avg_times[row_i] << "," << gemm_tiling_avg_times[row_i] << "\n";

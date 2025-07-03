@@ -31,23 +31,23 @@ void destroy_matrix_in_dram(double *matrix)
   free(matrix);
 }
 
-//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
-//{
-//  uint64_t size = num_rows * num_cols;
-//  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
-//  if (val) {
-//    std::fill(matrix, matrix + size, val);
-//  } else {
-//    memset(matrix, 0, size * sizeof(double));
-//  }
-//
-//  return matrix;
-//}
-//
-//void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
-//{
-//  rapid_free(fam, matrix);
-//}
+double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
+{
+  uint64_t size = num_rows * num_cols;
+  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
+  if (val) {
+    std::fill(matrix, matrix + size, val);
+  } else {
+    memset(matrix, 0, size * sizeof(double));
+  }
+
+  return matrix;
+}
+
+void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
+{
+  rapid_free(fam, matrix);
+}
 
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
 {
