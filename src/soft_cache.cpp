@@ -18,27 +18,27 @@ void copyBlock(const double *src, uint64_t rows, uint64_t cols, uint64_t row_off
   cache.resize(block_rows * block_cols);
 
   /// Copy
-//  uint64_t src_base = row_offset * cols + col_offset;
-//  uint64_t src_curr = src_base;
-//  uint64_t cache_curr = 0;
-//  for (uint64_t i = 0; i < block_rows; ++i) {
-//    std::copy(src + src_curr, src + src_curr + block_cols,
-//              cache.data_.begin() + cache_curr);
-//    src_curr += cols;
-//    cache_curr += block_cols;
-//  }
+  uint64_t src_base = row_offset * cols + col_offset;
+  uint64_t src_curr = src_base;
+  uint64_t cache_curr = 0;
   for (uint64_t i = 0; i < block_rows; ++i) {
-    uint64_t src_i = row_offset + i;
-    for (uint64_t j = 0; j < block_cols; ++j) {
-      uint64_t src_j = col_offset + j;
-      if (src_i < rows && src_j < cols) {
-        cache[i * block_cols + j] = src[src_i * cols + src_j];
-      } else {
-        /// Padding zeros
-        cache[i * block_cols + j] = 0.0;
-      }
-    }
+    std::copy(src + src_curr, src + src_curr + block_cols,
+              cache.data_.begin() + cache_curr);
+    src_curr += cols;
+    cache_curr += block_cols;
   }
+//  for (uint64_t i = 0; i < block_rows; ++i) {
+//    uint64_t src_i = row_offset + i;
+//    for (uint64_t j = 0; j < block_cols; ++j) {
+//      uint64_t src_j = col_offset + j;
+//      if (src_i < rows && src_j < cols) {
+//        cache[i * block_cols + j] = src[src_i * cols + src_j];
+//      } else {
+//        /// Padding zeros
+//        cache[i * block_cols + j] = 0.0;
+//      }
+//    }
+//  }
 
   /// Set cache ready
   cache.setReady();
@@ -76,9 +76,9 @@ void computeBlock(CacheBlock &A_cache, uint64_t A1_tile, uint64_t A2_tile,
     for (uint64_t k = 0; k < A2_tile; ++k) {
       for (uint64_t j = 0; j < B2_tile; ++j) {
         uint64_t c_j = C2_offset + j;
-        if (c_i < C1 && c_j < C2) {
-          C[c_i * C2 + c_j] += A_cache[i * A2_tile + k] * B_cache[k * B2_tile + j];
-        }
+//        if (c_i < C1 && c_j < C2) {
+        C[c_i * C2 + c_j] += A_cache[i * A2_tile + k] * B_cache[k * B2_tile + j];
+//        }
       }
     }
   }

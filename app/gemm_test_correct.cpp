@@ -9,7 +9,7 @@
 int main()
 {
   auto master_tt_start = std::chrono::high_resolution_clock::now();
-  uint64_t dim_size = 5;
+  uint64_t dim_size = 3;
   uint64_t A1 = dim_size;
   uint64_t A2 = dim_size;
   uint64_t B1 = A2;
