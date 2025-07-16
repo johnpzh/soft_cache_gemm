@@ -31,23 +31,23 @@ void destroy_matrix_in_dram(double *matrix)
   free(matrix);
 }
 
-//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
-//{
-//  uint64_t size = num_rows * num_cols;
-//  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
-//  if (val) {
-//    std::fill(matrix, matrix + size, val);
-//  } else {
-//    memset(matrix, 0, size * sizeof(double));
-//  }
-//
-//  return matrix;
-//}
-//
-//void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
-//{
-//  rapid_free(fam, matrix);
-//}
+double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
+{
+  uint64_t size = num_rows * num_cols;
+  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
+  if (val) {
+    std::fill(matrix, matrix + size, val);
+  } else {
+    memset(matrix, 0, size * sizeof(double));
+  }
+
+  return matrix;
+}
+
+void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
+{
+  rapid_free(fam, matrix);
+}
 
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
 {
@@ -334,6 +334,403 @@ void gemm_v4_softcache(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, ui
     }
   }
 }
+
+
+/// C[i,j] = A[i,k] * B[k,j]
+/// ii-kk-jj, i-k-j
+void gemm_v6_softcache_omp(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+                       double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+                       double *C)
+{
+  /// Main procedure
+#pragma omp parallel for
+  for (uint64_t ii = 0; ii < A1; ii += A1_tile) {
+    DoubleBuffer A_cache(A1_tile, A2_tile);
+    DoubleBuffer B_cache(B1_tile, B2_tile);
+    /// test
+//    printf("ii: %llu\n", ii);
+    /// end test
+    uint64_t A_block_rows = std::min(A1_tile, A1 - ii);
+    for (uint64_t kk = 0; kk < A2; kk += A2_tile) {
+      /// test
+//      printf("kk: %llu\n", kk);
+      /// end test
+      uint64_t A_block_cols = std::min(A2_tile, A2 - kk);
+      uint64_t B_block_rows = A_block_cols;
+      std::thread copy_thread_A;
+      if (kk == 0) {
+        /// new row in A. Prepare the A_cache
+//        copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+//                  A_cache.getActive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+        copy_thread_A = std::thread([&](){
+//          copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+//                    A_cache.getActive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+          copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+                    A_cache.getActive(), /*block_rows=*/A_block_rows, /*block_cols=*/A_block_cols);
+        });
+
+        /// test
+//        {
+//          printf("%d: A_cache.getActive():\n", __LINE__);
+//          A_cache.getActive().print(/*rows=*/A1_tile, /*cols=*/A2_tile);
+//        }
+        /// end test
+      }
+
+      for (uint64_t jj = 0; jj < B2; jj += B2_tile) {
+        /// test
+//        printf("jj: %llu\n", jj);
+        /// end test
+        uint64_t B_block_cols = std::min(B2_tile, B2 - jj);
+        std::thread copy_thread_B;
+        if (jj == 0) {
+          /// new row in B. Prepare the B_cache
+//          copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+//                    B_cache.getActive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+          copy_thread_B = std::thread([&](){
+//            copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+//                      B_cache.getActive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+            copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+                      B_cache.getActive(), /*block_rows=*/B_block_rows, /*block_cols=*/B_block_cols);
+          });
+          /// test
+//          {
+//            printf("%d: B_cache.getActive():\n", __LINE__);
+//            B_cache.getActive().print(/*rows=*/B1_tile, /*cols=*/B2_tile);
+//          }
+          /// end test
+        }
+        /// Compute in the active cache block
+//        computeBlock(A_cache.getActive(), /*A1_tile=*/A1_tile, /*A2_tile=*/A2_tile,
+//                     B_cache.getActive(), /*B1_tile=*/B1_tile, /*B2_tile=*/B2_tile,
+//                     C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+        std::thread compute_thread([&]() {
+//          computeBlock(A_cache.getActive(), /*A1_tile=*/A1_tile, /*A2_tile=*/A2_tile,
+//                       B_cache.getActive(), /*B1_tile=*/B1_tile, /*B2_tile=*/B2_tile,
+//                       C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+          computeBlock(A_cache.getActive(), /*A1_tile=*/A_block_rows, /*A2_tile=*/A_block_cols,
+                       B_cache.getActive(), /*B1_tile=*/B_block_rows, /*B2_tile=*/B_block_cols,
+                       C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+        });
+
+        if (copy_thread_A.joinable()) {
+          copy_thread_A.join();
+        }
+        if (copy_thread_B.joinable()) {
+          copy_thread_B.join();
+        }
+        compute_thread.join();
+        /// test
+//        {
+//          printf("-- %d: A_cache:\n", __LINE__);
+////          A_cache.getActive().print(A_block_rows, A_block_cols);
+//          A_cache.getActive().print(A1_tile, A2_tile);
+//          printf("-- %d: B_cache:\n", __LINE__);
+////          B_cache.getActive().print(B_block_rows, B_block_cols);
+//          B_cache.getActive().print(B1_tile, B2_tile);
+//          printf("-- %d: C[%llu-,%llu-]:\n", __LINE__, ii, jj);
+////          printf("i_bound: %llu, ii: %llu, k_bound: %llu, kk: %llu, j_bound: %llu, jj: %llu\n",
+////                 i_bound, ii, k_bound, kk, j_bound, jj);
+//          printf("A1_tile: %llu, A2_tile: %llu, B1_tile: %llu, B2_tile: %llu\n",
+//                 A1_tile, A2_tile, B1_tile, B2_tile);
+//          uint64_t row_i_bound = std::min(A1, ii + A1_tile);
+//          uint64_t col_j_bound = std::min(B2, jj + B2_tile);
+//          for (uint64_t row_i = ii; row_i < row_i_bound; ++row_i) {
+//            for (uint64_t col_j = jj; col_j < col_j_bound; ++col_j) {
+//              printf("%lf, ", C[row_i * B2 + col_j]);
+//            }
+//            printf("\n");
+//          }
+//        }
+        /// end test
+
+        std::thread prefetch_B_thread;
+        std::thread prefetch_A_thread;
+//        bool is_B_prefetched = false;
+//        bool is_A_prefetched = false;
+//        uint64_t jj_next = jj + B2_tile;
+        uint64_t jj_next = jj + B_block_cols;
+        if (jj_next < B2) {
+          /// If there more jPrefetch B to the inactive cache block
+//          copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+//                    B_cache.getInactive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+          uint64_t next_B_block_cols = std::min(B2_tile, B2 - jj_next);
+          prefetch_B_thread = std::thread([&]() {
+//            copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+//                      B_cache.getInactive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+            copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+                      B_cache.getInactive(), /*block_rows=*/B_block_rows, /*block_cols=*/next_B_block_cols);
+          });
+//          is_B_prefetched = true;
+          /// test
+//          {
+//            printf("%d: B_cache.getInactive():\n", __LINE__);
+//            B_cache.getInactive().print(/*rows=*/B1_tile, /*cols=*/B2_tile);
+//          }
+          /// end test
+        }
+        uint64_t kk_next = kk + A2_tile;
+        if (jj_next >= B2 && kk_next < A2) {
+          /// Prefetch A to the inactive cache block
+          uint64_t next_A_block_cols = std::min(A2_tile, A2 - kk_next);
+//          copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+//                    A_cache.getInactive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+          prefetch_A_thread = std::thread([&]() {
+//            copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+//                      A_cache.getInactive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+            copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+                      A_cache.getInactive(), /*block_rows=*/A_block_rows, /*block_cols=*/next_A_block_cols);
+          });
+//          is_A_prefetched = true;
+          /// test
+//          {
+//            printf("%d: A_cache.getInactive():\n", __LINE__);
+//            A_cache.getInactive().print(/*rows=*/A1_tile, /*cols=*/A2_tile);
+//          }
+          /// end test
+        }
+
+        /// Join
+//        compute_thread.join();
+        if (prefetch_B_thread.joinable()) {
+          prefetch_B_thread.join();
+          B_cache.swap();
+        }
+        if (prefetch_A_thread.joinable()) {
+          prefetch_A_thread.join();
+          A_cache.swap();
+        }
+//        if (is_B_prefetched) {
+//          B_cache.swap();
+//        }
+//        if (is_A_prefetched) {
+//          A_cache.swap();
+//        }
+
+//        /////////////////////////////////////////////
+//        /// Tile
+//        for (uint64_t i = ii; i < i_bound; ++i) {
+//          for (uint64_t k = kk; k < k_bound; ++k) {
+//            for (uint64_t j = jj; j < j_bound; ++j) {
+//              C[i * B2 + j] += A[i * A2 + k] * B[k * B2 + j];
+//            }
+//          }
+//        }
+      }
+    }
+  }
+}
+
+///// C[i,j] = A[i,k] * B[k,j]
+///// ii-kk-jj, i-k-j
+///// Do prefetch between rows.
+//void gemm_v5_softcache(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile, DoubleBuffer &A_cache,
+//                       double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile, DoubleBuffer &B_cache,
+//                       double *C)
+//{
+//  /// Main procedure
+//  for (uint64_t ii = 0; ii < A1; ii += A1_tile) {
+//    /// test
+////    printf("ii: %llu\n", ii);
+//    /// end test
+//    uint64_t A_block_rows = std::min(A1_tile, A1 - ii);
+//    for (uint64_t kk = 0; kk < A2; kk += A2_tile) {
+//      /// test
+////      printf("kk: %llu\n", kk);
+//      /// end test
+//      uint64_t A_block_cols = std::min(A2_tile, A2 - kk);
+//      uint64_t B_block_rows = A_block_cols;
+//      std::thread copy_thread_A;
+//      if (kk == 0) {
+//        /// new row in A. Prepare the A_cache
+////        copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+////                  A_cache.getActive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+//        copy_thread_A = std::thread([&](){
+////          copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+////                    A_cache.getActive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+//          copyBlock(A, A1, A2, /*row_offset=*/ii, /*col_offset=*/kk,
+//                    A_cache.getActive(), /*block_rows=*/A_block_rows, /*block_cols=*/A_block_cols);
+//        });
+//
+//        /// test
+////        {
+////          printf("%d: A_cache.getActive():\n", __LINE__);
+////          A_cache.getActive().print(/*rows=*/A1_tile, /*cols=*/A2_tile);
+////        }
+//        /// end test
+//      }
+//
+//      for (uint64_t jj = 0; jj < B2; jj += B2_tile) {
+//        /// test
+////        printf("jj: %llu\n", jj);
+//        /// end test
+//        uint64_t B_block_cols = std::min(B2_tile, B2 - jj);
+//        std::thread copy_thread_B;
+//        if (jj == 0) {
+//          /// new row in B. Prepare the B_cache
+////          copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+////                    B_cache.getActive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+//          copy_thread_B = std::thread([&](){
+////            copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+////                      B_cache.getActive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+//            copyBlock(B, B1, B2, /*row_offset=*/kk, /*col_offset=*/jj,
+//                      B_cache.getActive(), /*block_rows=*/B_block_rows, /*block_cols=*/B_block_cols);
+//          });
+//          /// test
+////          {
+////            printf("%d: B_cache.getActive():\n", __LINE__);
+////            B_cache.getActive().print(/*rows=*/B1_tile, /*cols=*/B2_tile);
+////          }
+//          /// end test
+//        }
+//        /// Compute in the active cache block
+////        computeBlock(A_cache.getActive(), /*A1_tile=*/A1_tile, /*A2_tile=*/A2_tile,
+////                     B_cache.getActive(), /*B1_tile=*/B1_tile, /*B2_tile=*/B2_tile,
+////                     C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+//        std::thread compute_thread([&]() {
+////          computeBlock(A_cache.getActive(), /*A1_tile=*/A1_tile, /*A2_tile=*/A2_tile,
+////                       B_cache.getActive(), /*B1_tile=*/B1_tile, /*B2_tile=*/B2_tile,
+////                       C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+//          computeBlock(A_cache.getActive(), /*A1_tile=*/A_block_rows, /*A2_tile=*/A_block_cols,
+//                       B_cache.getActive(), /*B1_tile=*/B_block_rows, /*B2_tile=*/B_block_cols,
+//                       C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+//        });
+//
+//        if (copy_thread_A.joinable()) {
+//          copy_thread_A.join();
+//        }
+//        if (copy_thread_B.joinable()) {
+//          copy_thread_B.join();
+//        }
+//        compute_thread.join();
+//        /// test
+////        {
+////          printf("-- %d: A_cache:\n", __LINE__);
+//////          A_cache.getActive().print(A_block_rows, A_block_cols);
+////          A_cache.getActive().print(A1_tile, A2_tile);
+////          printf("-- %d: B_cache:\n", __LINE__);
+//////          B_cache.getActive().print(B_block_rows, B_block_cols);
+////          B_cache.getActive().print(B1_tile, B2_tile);
+////          printf("-- %d: C[%llu-,%llu-]:\n", __LINE__, ii, jj);
+//////          printf("i_bound: %llu, ii: %llu, k_bound: %llu, kk: %llu, j_bound: %llu, jj: %llu\n",
+//////                 i_bound, ii, k_bound, kk, j_bound, jj);
+////          printf("A1_tile: %llu, A2_tile: %llu, B1_tile: %llu, B2_tile: %llu\n",
+////                 A1_tile, A2_tile, B1_tile, B2_tile);
+////          uint64_t row_i_bound = std::min(A1, ii + A1_tile);
+////          uint64_t col_j_bound = std::min(B2, jj + B2_tile);
+////          for (uint64_t row_i = ii; row_i < row_i_bound; ++row_i) {
+////            for (uint64_t col_j = jj; col_j < col_j_bound; ++col_j) {
+////              printf("%lf, ", C[row_i * B2 + col_j]);
+////            }
+////            printf("\n");
+////          }
+////        }
+//        /// end test
+//
+//        std::thread prefetch_B_thread;
+//        std::thread prefetch_A_thread;
+////        bool is_B_prefetched = false;
+////        bool is_A_prefetched = false;
+////        uint64_t jj_next = jj + B2_tile;
+//        uint64_t jj_next = jj + B_block_cols;
+//        if (jj_next < B2) {
+//          /// If there more jPrefetch B to the inactive cache block
+////          copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+////                    B_cache.getInactive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+//          uint64_t next_B_block_cols = std::min(B2_tile, B2 - jj_next);
+//          prefetch_B_thread = std::thread([&]() {
+////            copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+////                      B_cache.getInactive(), /*block_rows=*/B1_tile, /*block_cols=*/B2_tile);
+//            copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+//                      B_cache.getInactive(), /*block_rows=*/B_block_rows, /*block_cols=*/next_B_block_cols);
+//          });
+////          is_B_prefetched = true;
+//          /// test
+////          {
+////            printf("%d: B_cache.getInactive():\n", __LINE__);
+////            B_cache.getInactive().print(/*rows=*/B1_tile, /*cols=*/B2_tile);
+////          }
+//          /// end test
+//        } else { /// jj_next >= B2
+//          uint64_t kk_next = kk + A2_tile;
+//          if (kk_next < A2) {
+//            /// Prefetch B-block in the next row
+//            jj_next = 0;
+//            uint64_t next_B_block_rows = std::min(B1_tile, A2 - kk_next);
+//            uint64_t next_B_block_cols = std::min(B2_tile, B2 - jj_next);
+//            prefetch_B_thread = std::thread([&]() {
+//              copyBlock(B, /*rows=*/B1, /*cols=*/B2, /*row_offset=*/kk, /*col_offset=*/jj_next,
+//                        B_cache.getInactive(), /*block_rows=*/next_B_block_rows, /*block_cols=*/next_B_block_cols);
+//            });
+//            /// Prefetch A-block in current row
+//            uint64_t next_A_block_cols = std::min(A2_tile, A2 - kk_next);
+//            prefetch_A_thread = std::thread([&]() {
+//              copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+//                        A_cache.getInactive(), /*block_rows=*/A_block_rows, /*block_cols=*/next_A_block_cols);
+//            });
+//          } else {
+//            uint64_t ii_next = ii + A1_tile;
+//            if (ii_next < A1) {
+//              /// TODO: 1. prefetch here. 2. No need to copy the first block of the row then.
+//            }
+//          }
+//
+//        }
+//
+//
+//
+//        ////////////////////////////
+//        uint64_t kk_next = kk + A2_tile;
+//        if (jj_next >= B2 && kk_next < A2) {
+//          /// Prefetch A to the inactive cache block
+//          uint64_t next_A_block_cols = std::min(A2_tile, A2 - kk_next);
+////          copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+////                    A_cache.getInactive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+//          prefetch_A_thread = std::thread([&]() {
+////            copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+////                      A_cache.getInactive(), /*block_rows=*/A1_tile, /*block_cols=*/A2_tile);
+//            copyBlock(A, /*rows=*/A1, /*cols=*/A2, /*row_offset=*/ii, /*col_offset=*/kk_next,
+//                      A_cache.getInactive(), /*block_rows=*/A_block_rows, /*block_cols=*/next_A_block_cols);
+//          });
+////          is_A_prefetched = true;
+//          /// test
+////          {
+////            printf("%d: A_cache.getInactive():\n", __LINE__);
+////            A_cache.getInactive().print(/*rows=*/A1_tile, /*cols=*/A2_tile);
+////          }
+//          /// end test
+//        }
+//
+//        /// Join
+////        compute_thread.join();
+//        if (prefetch_B_thread.joinable()) {
+//          prefetch_B_thread.join();
+//          B_cache.swap();
+//        }
+//        if (prefetch_A_thread.joinable()) {
+//          prefetch_A_thread.join();
+//          A_cache.swap();
+//        }
+////        if (is_B_prefetched) {
+////          B_cache.swap();
+////        }
+////        if (is_A_prefetched) {
+////          A_cache.swap();
+////        }
+//
+////        /////////////////////////////////////////////
+////        /// Tile
+////        for (uint64_t i = ii; i < i_bound; ++i) {
+////          for (uint64_t k = kk; k < k_bound; ++k) {
+////            for (uint64_t j = jj; j < j_bound; ++j) {
+////              C[i * B2 + j] += A[i * A2 + k] * B[k * B2 + j];
+////            }
+////          }
+////        }
+//      }
+//    }
+//  }
+//}
 
 //-----------
 // Utilities

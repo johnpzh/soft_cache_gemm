@@ -24,8 +24,8 @@ int main()
   uint64_t A2_tile = tile_dim_size;
   uint64_t B1_tile = A2_tile;
   uint64_t B2_tile = tile_dim_size;
-  DoubleBuffer A_cache(A1, A2);
-  DoubleBuffer B_cache(B1, B2);
+  DoubleBuffer A_cache(A1_tile, A2_tile);
+  DoubleBuffer B_cache(B1_tile, B2_tile);
 
 //  for (uint64_t i = 0; i < A1 * A2; ++i) {
 //    A[i] = i;
