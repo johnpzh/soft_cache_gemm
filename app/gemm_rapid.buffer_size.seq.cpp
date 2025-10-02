@@ -15,8 +15,8 @@ int main()
   uint64_t num_repeats = 4;
 
   std::vector<uint64_t> dim_sizes;
-//  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
-  for (uint64_t dim_size = 8192; dim_size <= 8192; dim_size *= 2) {
+  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
+//  for (uint64_t dim_size = 1024; dim_size <= 1024; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
 //  std::vector<double> gemm_no_tiling_avg_times;
@@ -24,7 +24,7 @@ int main()
 
   std::vector<uint64_t> tile_dim_sizes;
 //  for (uint64_t tile_dim_size = 128; tile_dim_size <= 2048; tile_dim_size *= 2) {
-  for (uint64_t tile_dim_size = 8; tile_dim_size <= 8; tile_dim_size *= 2) {
+  for (uint64_t tile_dim_size = 8; tile_dim_size <= 64; tile_dim_size *= 2) {
     tile_dim_sizes.push_back(tile_dim_size);
   }
 
@@ -62,12 +62,12 @@ int main()
 
         auto tt_start = std::chrono::high_resolution_clock::now();
         /// Kernel
-//      gemm_v1_tiling(A, A1, A2, A1_tile, A2_tile,
-//                     B, B1, B2, B1_tile, B2_tile,
-//                     C);
-        gemm_v4_softcache(A, A1, A2, A1_tile, A2_tile, A_cache,
-                          B, B1, B2, B1_tile, B2_tile, B_cache,
-                          C);
+//        gemm_v4_softcache(A, A1, A2, A1_tile, A2_tile, A_cache,
+//                          B, B1, B2, B1_tile, B2_tile, B_cache,
+//                          C);
+        gemm_v7_background_thread(A, A1, A2, A1_tile, A2_tile,
+                                  B, B1, B2, B1_tile, B2_tile,
+                                  C);
         auto tt_end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tt_duration = tt_end - tt_start;
         std::cout << "FAM double-buffer dim_size: " << dim_size << ", buffer_size: " << tile_dim_size << ", r_i: " << r_i << ", time_exe(s): "

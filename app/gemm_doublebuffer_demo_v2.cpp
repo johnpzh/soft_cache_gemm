@@ -1,9 +1,7 @@
+//
+// Created by Zhen Peng on 9/4/25.
+//
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <chrono>
-//#include <format>
-#include <stdio.h>
 #include "gemm.h"
 
 int main()
@@ -23,22 +21,14 @@ int main()
   uint64_t A2_tile = tile_dim_size;
   uint64_t B1_tile = A2_tile;
   uint64_t B2_tile = tile_dim_size;
-  DoubleBuffer A_cache(A1_tile, A2_tile);
-  DoubleBuffer B_cache(B1_tile, B2_tile);
-
-//  for (uint64_t i = 0; i < A1 * A2; ++i) {
-//    A[i] = i;
-//    B[i] = i;
-//  }
 
   auto tt_start = std::chrono::high_resolution_clock::now();
-  /// Kernel
-//  gemm_v0(A, A1, A2,
-//          B, B1, B2,
-//          C);
-  gemm_v4_softcache(A, A1, A2, A1_tile, A2_tile, A_cache,
-                    B, B1, B2, B1_tile, B2_tile, B_cache,
-                    C);
+//  gemm_v7_background_thread(A, A1, A2, A1_tile, A2_tile,
+//                            B, B1, B2, B1_tile, B2_tile,
+//                            C);
+  gemm_v8_background_thread(A, A1, A2, A1_tile, A2_tile,
+                            B, B1, B2, B1_tile, B2_tile,
+                            C);
 
   auto tt_end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> tt_duration = tt_end - tt_start;

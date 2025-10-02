@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <cstring>
 #include "gemm.h"
+#include "background_thread.h"
 
 //--------
 // Matrix
@@ -31,23 +32,23 @@ void destroy_matrix_in_dram(double *matrix)
   free(matrix);
 }
 
-double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
-{
-  uint64_t size = num_rows * num_cols;
-  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
-  if (val) {
-    std::fill(matrix, matrix + size, val);
-  } else {
-    memset(matrix, 0, size * sizeof(double));
-  }
-
-  return matrix;
-}
-
-void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
-{
-  rapid_free(fam, matrix);
-}
+//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
+//{
+//  uint64_t size = num_rows * num_cols;
+//  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
+//  if (val) {
+//    std::fill(matrix, matrix + size, val);
+//  } else {
+//    memset(matrix, 0, size * sizeof(double));
+//  }
+//
+//  return matrix;
+//}
+//
+//void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
+//{
+//  rapid_free(fam, matrix);
+//}
 
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
 {
@@ -519,6 +520,145 @@ void gemm_v6_softcache_omp(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile
       }
     }
   }
+}
+
+/// Do swap on the auxiliary side
+void gemm_v7_background_thread(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+                               double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+                               double *C)
+{
+  uint64_t A_buffer_size = A1_tile * A2_tile;
+  double *A_buffer1 = (double *) malloc(A_buffer_size * sizeof(double));
+  double *A_buffer2 = (double *) malloc(A_buffer_size * sizeof(double));
+  std::atomic<bool> A_buffer_is_ready(false);
+
+  uint64_t B_buffer_size = B1_tile * B2_tile;
+  double *B_buffer1 = (double *) malloc(B_buffer_size * sizeof(double));
+  double *B_buffer2 = (double *) malloc(B_buffer_size * sizeof(double));
+  std::atomic<bool> B_buffer_is_ready(false);
+
+  /// Initialize the background thread
+  std::thread copy_thread;
+  intialize_thread_v1(copy_thread,
+                      A,
+                      A1,
+                      A2,
+                      &A_buffer1,
+                      &A_buffer2,
+                      A1_tile,
+                      A2_tile,
+                      &A_buffer_is_ready,
+                      B,
+                      B1,
+                      B2,
+                      &B_buffer1,
+                      &B_buffer2,
+                      B1_tile,
+                      B2_tile,
+                      &B_buffer_is_ready);
+
+  /// The kernel
+  for (uint64_t ii = 0; ii < A1; ii += A1_tile) {
+    uint64_t A_block_rows = std::min(A1_tile, A1 - ii);
+    for (uint64_t kk = 0; kk < A2; kk += A2_tile) {
+      uint64_t A_block_cols = std::min(A2_tile, A2 - kk);
+      uint64_t B_block_rows = A_block_cols;
+      /// Sync A_buffer
+      while (!A_buffer_is_ready.load(std::memory_order_acquire)) {
+        ;  /// Spin
+      }
+      for (uint64_t jj = 0; jj < B2; jj += B2_tile) {
+        uint64_t B_block_cols = std::min(B2_tile, B2 - jj);
+        /// Sync B_buffer
+        while (!B_buffer_is_ready.load(std::memory_order_acquire)) {
+          ; /// Spin
+        }
+        do_gemm_on_buffer(/*A_buffer_active=*/A_buffer1, A1_tile, A2_tile, A_block_rows, A_block_cols,
+                          /*B_buffer_active=*/B_buffer1, B1_tile, B2_tile, B_block_rows, B_block_cols,
+                          C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+        B_buffer_is_ready.store(false, std::memory_order_release);
+      }
+      A_buffer_is_ready.store(false, std::memory_order_release);
+    }
+  }
+
+  /// Clean up
+  copy_thread.join();
+  free(A_buffer1);
+  free(A_buffer2);
+  free(B_buffer1);
+  free(B_buffer2);
+}
+
+
+/// Do the swap on the main side
+void gemm_v8_background_thread(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+                               double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+                               double *C)
+{
+  uint64_t A_buffer_size = A1_tile * A2_tile;
+  double *A_buffer1 = (double *) malloc(A_buffer_size * sizeof(double));
+  double *A_buffer2 = (double *) malloc(A_buffer_size * sizeof(double));
+  std::atomic<bool> A_buffer_is_ready(false);
+
+  uint64_t B_buffer_size = B1_tile * B2_tile;
+  double *B_buffer1 = (double *) malloc(B_buffer_size * sizeof(double));
+  double *B_buffer2 = (double *) malloc(B_buffer_size * sizeof(double));
+  std::atomic<bool> B_buffer_is_ready(false);
+
+  /// Initialize the background thread
+  std::thread copy_thread;
+  intialize_thread_v2(copy_thread,
+                      A,
+                      A1,
+                      A2,
+//                      &A_buffer1,
+                      &A_buffer2,
+                      A1_tile,
+                      A2_tile,
+                      &A_buffer_is_ready,
+                      B,
+                      B1,
+                      B2,
+//                      &B_buffer1,
+                      &B_buffer2,
+                      B1_tile,
+                      B2_tile,
+                      &B_buffer_is_ready);
+
+  /// The kernel
+  for (uint64_t ii = 0; ii < A1; ii += A1_tile) {
+    uint64_t A_block_rows = std::min(A1_tile, A1 - ii);
+    for (uint64_t kk = 0; kk < A2; kk += A2_tile) {
+      uint64_t A_block_cols = std::min(A2_tile, A2 - kk);
+      uint64_t B_block_rows = A_block_cols;
+      /// Sync A_buffer
+      while (!A_buffer_is_ready.load(std::memory_order_acquire)) {
+        ;  /// Spin
+      }
+      swap_buffer(&A_buffer1, &A_buffer2);
+      A_buffer_is_ready.store(false, std::memory_order_release);
+      for (uint64_t jj = 0; jj < B2; jj += B2_tile) {
+        uint64_t B_block_cols = std::min(B2_tile, B2 - jj);
+        /// Sync B_buffer
+        while (!B_buffer_is_ready.load(std::memory_order_acquire)) {
+          ; /// Spin
+        }
+        swap_buffer(&B_buffer1, &B_buffer2);
+        B_buffer_is_ready.store(false, std::memory_order_release);
+        do_gemm_on_buffer(/*A_buffer_active=*/A_buffer1, A1_tile, A2_tile, A_block_rows, A_block_cols,
+                          /*B_buffer_active=*/B_buffer1, B1_tile, B2_tile, B_block_rows, B_block_cols,
+                          C, /*C1=*/A1, /*C2=*/B2, /*C1_offset=*/ii, /*C2_offset=*/jj);
+      }
+    }
+  }
+
+  /// Clean up
+  copy_thread.join();
+  free(A_buffer1);
+  free(A_buffer2);
+  free(B_buffer1);
+  free(B_buffer2);
 }
 
 ///// C[i,j] = A[i,k] * B[k,j]

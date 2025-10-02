@@ -12,9 +12,9 @@ cd ${OUTPUT_DIR}
 # Run
 
 # FAM, DoubleBuffer, BufferSize, Seq
-#"${BUILD_DIR}/gemm_rapid.buffer_size.seq"
+"${BUILD_DIR}/gemm_rapid.buffer_size.seq"
 
 # FAM, DoubleBuffer, BufferSize, NumThreads
 # Matrix-size-4096
 # Matrix-size-8192
-"${BUILD_DIR}/gemm_rapid.buffer_size.omp"
+#"${BUILD_DIR}/gemm_rapid.buffer_size.omp"

@@ -7,9 +7,9 @@
 
 #include <vector>
 #include <fstream>
-#include <omp.h>
 #include "soft_cache.h"
-#include "rapid.h"
+//#include <omp.h>
+//#include "rapid.h"
 
 //--------
 // Matrix
@@ -17,8 +17,8 @@
 
 double *create_matrix_in_dram(uint64_t num_rows, uint64_t num_cols, double val=0);
 void destroy_matrix_in_dram(double *matrix);
-double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val=0);
-void destroy_matrix_in_fam(rapid_handle fam, double *matrix);
+//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val=0);
+//void destroy_matrix_in_fam(rapid_handle fam, double *matrix);
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols);
 
 //--------------
@@ -45,6 +45,16 @@ void gemm_v4_softcache(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, ui
 void gemm_v6_softcache_omp(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
                        double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
                        double *C);
+
+/// Do swap on the auxiliary side
+void gemm_v7_background_thread(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+                               double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+                               double *C);
+
+/// Do swap on the main side
+void gemm_v8_background_thread(double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+                               double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+                               double *C);
 
 //-----------
 // Utilities
