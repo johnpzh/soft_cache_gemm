@@ -94,6 +94,7 @@ mlir_cpu_runner="${COMET_ROOT_DIR}/llvm/build/bin/mlir-cpu-runner"
 mlir_cpu_runner_options="-O3 -e main -entry-point-result=void"
 mlir_cpu_runner_shared_libs="${COMET_ROOT_DIR}/cmake-build-debug/lib/libcomet_runner_utils.${EXT},\
 ${COMET_ROOT_DIR}/llvm/build/lib/libomp.${EXT},\
+${COMET_ROOT_DIR}/llvm/build/lib/libmlir_async_runtime.${EXT},\
 ${COMET_ROOT_DIR}/llvm/build/lib/libmlir_c_runner_utils.${EXT}\
 "
 eval ${mlir_cpu_runner} ${mlir_cpu_runner_options} -shared-libs="${mlir_cpu_runner_shared_libs}" ${src_llvm}

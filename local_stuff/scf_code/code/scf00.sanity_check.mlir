@@ -125,9 +125,48 @@ func.func @main() {
   /// -----------------
   /// Thread
   /// -----------------
-  func.call @comet_initialize_double_buffer_thread(%cast1) : (memref<*xmemref<*xf64>>) -> ()
+  %A_buffer_is_ready = memref.alloc(%c1) : memref<?xi8>
+  memref.store %char0, %A_buffer_is_ready[%c0] : memref<?xi8>
+  %A_buffer_is_ready_cast = memref.cast %A_buffer_is_ready : memref<?xi8> to memref<*xi8>
+
+  %loaded4 = memref.load %A_buffer_is_ready[%c0] : memref<?xi8>
+  %loaded4_extui = arith.extui %loaded4 : i8 to i64
+  func.call @printI64(%loaded4_extui) : (i64) -> ()
+  func.call @printComma() : () -> ()
+  func.call @printNewline() : () -> ()
+
+  // /// Option 1: use C++ thread and detach()
+  // func.call @comet_initialize_test_thread(%cast1, %A_buffer_is_ready_cast) : (memref<*xmemref<*xf64>>, memref<*xi8>) -> ()
+
+  /// Option 2: use MLIR async dialect
+  %token = async.execute {
+    func.call @comet_async_background_thread_test(%cast1, %A_buffer_is_ready_cast) : (memref<*xmemref<*xf64>>, memref<*xi8>) -> ()
+    async.yield
+  }
+
+  %loaded5 = memref.load %A_buffer_is_ready[%c0] : memref<?xi8>
+  %res1 = scf.while (%flag2 = %loaded5) : (i8) -> i8 {
+    %condition = arith.cmpi eq, %flag2, %char1 : i8
+    scf.condition(%condition) %flag2 : i8
+  } do {
+  ^bb0(%flag2_arg: i8):
+    %loaded6 = func.call @comet_atomic_load_n_i8(%A_buffer_is_ready_cast) : (memref<*xi8>) -> i8
+    func.call @printComma() : () -> ()
+    func.call @printNewline() : () -> ()
+    scf.yield %loaded6 : i8
+  }
+
   func.call @comet_print_memref_to_memref_f64(%cast1) : (memref<*xmemref<*xf64>>) -> ()
   func.call @printNewline() : () -> ()
+  func.call @comet_atomic_store_n_i8(%A_buffer_is_ready_cast, %char1) : (memref<*xi8>, i8) -> ()
+
+  %loaded7 = memref.load %A_buffer_is_ready[%c0] : memref<?xi8>
+  %loaded7_extui = arith.extui %loaded7 : i8 to i64
+  func.call @printI64(%loaded7_extui) : (i64) -> ()
+  func.call @printComma() : () -> ()
+  func.call @printNewline() : () -> ()
+
+  async.await %token : !async.token
 
   return
 }
@@ -138,8 +177,10 @@ func.func private @comet_print_memref_to_memref_f64(memref<*xmemref<*xf64>>)
 func.func private @comet_atomic_load_n_i8(memref<*xi8>) -> i8
 func.func private @comet_atomic_store_n_i8(memref<*xi8>, i8)
 func.func private @comet_swap_buffers(memref<*xmemref<*xf64>>, memref<*xmemref<*xf64>>)
-func.func private @comet_initialize_double_buffer_thread(memref<*xmemref<*xf64>>)
+func.func private @comet_initialize_test_thread(memref<*xmemref<*xf64>>, memref<*xi8>)
+func.func private @comet_async_background_thread_test(memref<*xmemref<*xf64>>, memref<*xi8>)
 func.func private @printI64(i64)
 func.func private @printF64(f64)
+func.func private @printComma()
 func.func private @printNewline()
 }
