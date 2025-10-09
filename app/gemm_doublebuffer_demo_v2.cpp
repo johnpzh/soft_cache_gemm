@@ -23,12 +23,12 @@ int main()
   uint64_t B2_tile = tile_dim_size;
 
   auto tt_start = std::chrono::high_resolution_clock::now();
-//  gemm_v7_background_thread(A, A1, A2, A1_tile, A2_tile,
-//                            B, B1, B2, B1_tile, B2_tile,
-//                            C);
-  gemm_v8_background_thread(A, A1, A2, A1_tile, A2_tile,
+  gemm_v7_background_thread(A, A1, A2, A1_tile, A2_tile,
                             B, B1, B2, B1_tile, B2_tile,
                             C);
+//  gemm_v8_background_thread(A, A1, A2, A1_tile, A2_tile,
+//                            B, B1, B2, B1_tile, B2_tile,
+//                            C);
 
   auto tt_end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> tt_duration = tt_end - tt_start;

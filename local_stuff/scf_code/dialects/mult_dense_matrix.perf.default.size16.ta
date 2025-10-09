@@ -1,0 +1,31 @@
+# RUN: comet-opt --convert-ta-to-it --convert-to-loops --convert-to-llvm %s &> mult_dense_matrix.llvm
+# RUN: mlir-cpu-runner mult_dense_matrix.llvm -O3 -e main -entry-point-result=void -shared-libs=%comet_utility_library_dir/libcomet_runner_utils%shlibext | FileCheck %s
+
+
+def main() {
+	#IndexLabel Declarations
+	IndexLabel [i] = [16];
+	IndexLabel [j] = [16];
+	IndexLabel [k] = [16];
+
+	#Tensor Declarations
+	Tensor<double> A([i, j], {Dense}, {allocator = "default"});
+	Tensor<double> B([j, k], {Dense});
+	Tensor<double> C([i, k], {Dense}, {allocator = "default"});
+
+	#Tensor Fill Operation
+	A[i, j] = 2.2;
+	B[j, k] = 3.4;
+	C[i, k] = 0.0;
+
+	var time0 = getTime();
+	C[i, k] = A[i, j] * B[j, k];
+	var time1 = getTime();
+	var nn = SUM(C[i, k]);
+	print(nn);
+	printElapsedTime(time0, time1);
+}
+
+# Print the result for verification.
+# CHECK: data = 
+# CHECK-NEXT: 29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,29.92,
