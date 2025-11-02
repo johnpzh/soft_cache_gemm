@@ -10,6 +10,7 @@ input_ta=$1
 # Number of Threads
 export OMP_NUM_THREADS=8
 export COMET_ROOT_DIR="/Users/peng599/pppp/comet-amais-memory/COMET-memAnalysis2-dev-new"
+# export COMET_ROOT_DIR="/home/peng599/pppp/amais_project/COMET-memAnalysis2-dev-new"
 
 # Input sparse matrix
 # export SPARSE_FILE_NAME0="../../test/integration/data/test_rank2_small.mtx"
@@ -53,6 +54,7 @@ esac
 
 # Lowering
 comet_opt="${COMET_ROOT_DIR}/cmake-build-debug/bin/comet-opt"
+# comet_opt="${COMET_ROOT_DIR}/build/bin/comet-opt"
 #mlir_opt="../../llvm/build/bin/mlir-opt"
 # input_ta="mult_dense_matrix.ta"
 basename=$(basename ${input_ta})
@@ -92,9 +94,11 @@ eval ${comet_opt} ${llvm_options} ${input_ta} &> ${src_llvm}
 # Runner
 mlir_cpu_runner="${COMET_ROOT_DIR}/llvm/build/bin/mlir-cpu-runner"
 mlir_cpu_runner_options="-O3 -e main -entry-point-result=void"
+# mlir_cpu_runner_shared_libs="${COMET_ROOT_DIR}/build/lib/libcomet_runner_utils.${EXT},\
 mlir_cpu_runner_shared_libs="${COMET_ROOT_DIR}/cmake-build-debug/lib/libcomet_runner_utils.${EXT},\
 ${COMET_ROOT_DIR}/llvm/build/lib/libomp.${EXT},\
 ${COMET_ROOT_DIR}/llvm/build/lib/libmlir_async_runtime.${EXT},\
-${COMET_ROOT_DIR}/llvm/build/lib/libmlir_c_runner_utils.${EXT}\
+${COMET_ROOT_DIR}/llvm/build/lib/libmlir_c_runner_utils.${EXT},\
+/share/micron/rapid/install/gcc-debug/lib64/librapid.${EXT}\
 "
 eval ${mlir_cpu_runner} ${mlir_cpu_runner_options} -shared-libs="${mlir_cpu_runner_shared_libs}" ${src_llvm}

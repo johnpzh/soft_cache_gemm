@@ -32,23 +32,23 @@ void destroy_matrix_in_dram(double *matrix)
   free(matrix);
 }
 
-//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
-//{
-//  uint64_t size = num_rows * num_cols;
-//  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
-//  if (val) {
-//    std::fill(matrix, matrix + size, val);
-//  } else {
-//    memset(matrix, 0, size * sizeof(double));
-//  }
-//
-//  return matrix;
-//}
-//
-//void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
-//{
-//  rapid_free(fam, matrix);
-//}
+double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val)
+{
+  uint64_t size = num_rows * num_cols;
+  double *matrix = (double *) rapid_malloc(fam, size * sizeof(double));
+  if (val) {
+    std::fill(matrix, matrix + size, val);
+  } else {
+    memset(matrix, 0, size * sizeof(double));
+  }
+
+  return matrix;
+}
+
+void destroy_matrix_in_fam(rapid_handle fam, double *matrix)
+{
+  rapid_free(fam, matrix);
+}
 
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
 {
@@ -58,6 +58,17 @@ void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
     }
     std::cout << "\n";
   }
+}
+
+double sum_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols)
+{
+  double sum = 0.0;
+  for (uint64_t i = 0; i < num_rows; ++i) {
+    for (uint64_t j = 0; j < num_cols; ++j) {
+      sum += matrix[i * num_cols + j];
+    }
+  }
+  return sum;
 }
 
 //--------------
@@ -659,6 +670,144 @@ void gemm_v8_background_thread(double *A, uint64_t A1, uint64_t A2, uint64_t A1_
   free(A_buffer2);
   free(B_buffer1);
   free(B_buffer2);
+}
+
+
+void gemm_v9_doublebuffer_parallel_jj(
+    double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+    double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+    double *C,
+    uint64_t num_workers)
+{
+  if (0 == num_workers) {
+    /// Fallback to sequential
+    num_workers = 1;
+  }
+  uint64_t num_j_tiles = (B2 + B2_tile - 1) / B2_tile;
+  uint64_t tiles_per_workers = num_j_tiles / num_workers;
+  uint64_t remainder = num_j_tiles % num_workers;
+
+  /// Shared A buffers
+  uint64_t A_buffer_size = A1_tile * A2_tile;
+  double *A_buffer1 = (double *) malloc(A_buffer_size * sizeof(double));
+  double *A_buffer2 = (double *) malloc(A_buffer_size * sizeof(double));
+  double **A_buffer1_ptr = &A_buffer1;
+  double **A_buffer2_ptr = &A_buffer2;
+//  std::atomic<bool> A_buffer_is_ready(false);
+//  std::atomic<uint64_t> A_in_use(0);
+//  std::atomic<uint64_t> A_in_after_use(0);
+  std::vector<std::atomic<bool> *> A_buffer_is_ready_list(num_workers);
+  for (uint64_t w = 0; w < num_workers; ++w) {
+    A_buffer_is_ready_list[w] = new std::atomic<bool>(false);
+  }
+
+  /// Launch shared A aux thread
+  std::thread A_copy_thread(background_A_process, A, A1, A2,
+                            A_buffer1_ptr, A_buffer2_ptr,
+                            A1_tile, A2_tile,
+//                            &A_in_use,
+//                            &A_in_after_use,
+                            std::ref(A_buffer_is_ready_list),
+                            num_workers);
+
+  /// Per-worker resource for B aux threads
+  std::vector<std::thread> compute_threads(num_workers);
+  std::vector<std::thread> B_copy_threads(num_workers);
+  std::vector<double *> worker_B_buffer1s(num_workers);
+  std::vector<double *> worker_B_buffer2s(num_workers);
+  std::vector<std::atomic<bool> *> worker_B_readys(num_workers);
+  uint64_t B_buffer_size = B1_tile * B2_tile;
+  for (uint64_t w = 0; w < num_workers; ++w) {
+    worker_B_buffer1s[w] = (double *) malloc(B_buffer_size * sizeof(double));
+    worker_B_buffer2s[w] = (double *) malloc(B_buffer_size * sizeof(double));
+    worker_B_readys[w] = new std::atomic<bool>(false);
+  }
+//  std::vector<uint64_t> j_starts(num_workers);
+//  std::vector<uint64_t> num_local_j_tiles_vec(num_workers);
+
+//  uint64_t current_tile_start = 0;
+  uint64_t j_start = 0;
+  for (uint64_t w = 0; w < num_workers; ++w) {
+    uint64_t num_local_j_tiles = tiles_per_workers + (w < remainder ? 1 : 0);
+//    uint64_t j_start = current_tile_start * B2_tile;
+
+    /// Per-worker B buffers
+//    uint64_t B_buffer_size = B1_tile * B2_tile;
+//    double *B_buffer1 = (double *) malloc(B_buffer_size * sizeof(double));
+//    double *B_buffer2 = (double *) malloc(B_buffer_size * sizeof(double));
+//    double **B_buffer1_ptr = &B_buffer1;
+//    double **B_buffer2_ptr = &B_buffer2;
+//    worker_B_buffer1s[w] = B_buffer1;
+//    worker_B_buffer2s[w] = B_buffer2;
+//    std::atomic<bool> B_buffer_is_ready(false);
+//    std::atomic<bool> *B_buffer_is_ready = new std::atomic<bool>(false);
+//    worker_B_readys[w] = B_buffer_is_ready;
+    double **B_buffer1_ptr = &worker_B_buffer1s[w];
+    double **B_buffer2_ptr = &worker_B_buffer2s[w];
+    std::atomic<bool> *B_buffer_is_ready = worker_B_readys[w];
+    std::atomic<bool> *A_buffer_is_ready = A_buffer_is_ready_list[w];
+
+    /// Launch per-worker B aux thread
+    B_copy_threads[w] = std::thread(background_B_process,
+                                    A1,
+                                    A2,
+                                    A1_tile,
+                                    A2_tile,
+                                    B,
+                                    B1,
+                                    B2,
+                                    B_buffer1_ptr,
+                                    B_buffer2_ptr,
+                                    B1_tile,
+                                    B2_tile,
+                                    B_buffer_is_ready,
+                                    j_start,
+                                    num_local_j_tiles);
+
+    /// Launch per-worker compute thread
+    compute_threads[w] = std::thread(compute_worker,
+                                     A1,
+                                     A2,
+                                     B1,
+                                     B2,
+                                     A_buffer1_ptr,
+                                     A1_tile,
+                                     A2_tile,
+//                                     &A_in_use,
+//                                     &A_in_after_use,
+                                     A_buffer_is_ready,
+                                     B_buffer1_ptr,
+                                     B1_tile,
+                                     B2_tile,
+                                     B_buffer_is_ready,
+                                     C,
+                                     j_start,
+                                     num_local_j_tiles,
+                                     w);
+
+//    current_tile_start += num_local_j_tiles;
+      j_start += (num_local_j_tiles * B2_tile);
+  }
+
+  /// Join all workders
+  A_copy_thread.join();
+  for (auto &t : B_copy_threads) {
+    t.join();
+  }
+  for (auto &t : compute_threads) {
+    t.join();
+  }
+
+  /// Cleanup
+  free(A_buffer1);
+  free(A_buffer2);
+  for (uint64_t w = 0; w < num_workers; ++w) {
+    free(worker_B_buffer1s[w]);
+    free(worker_B_buffer2s[w]);
+    delete A_buffer_is_ready_list[w];
+    delete worker_B_readys[w];
+  }
+
 }
 
 ///// C[i,j] = A[i,k] * B[k,j]

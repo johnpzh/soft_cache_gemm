@@ -33,18 +33,25 @@ int main()
 
   auto tt_start = std::chrono::high_resolution_clock::now();
   /// Kernel
-//  gemm_v0(A, A1, A2,
-//          B, B1, B2,
-//          C);
-  gemm_v4_softcache(A, A1, A2, A1_tile, A2_tile, A_cache,
-                    B, B1, B2, B1_tile, B2_tile, B_cache,
-                    C);
+  gemm_v0(A, A1, A2,
+          B, B1, B2,
+          C);
+//  gemm_v4_softcache(A, A1, A2, A1_tile, A2_tile, A_cache,
+//                    B, B1, B2, B1_tile, B2_tile, B_cache,
+//                    C);
 
   auto tt_end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> tt_duration = tt_end - tt_start;
   std::cout << "DRAM test correctness dim_size: " << dim_size << ", time_exe(s): " << tt_duration.count() << "\n";
 
   print_matrix(C, C1, C2);
+  double sum = 0.0;
+  for (uint64_t i = 0; i < C1; ++i) {
+    for (uint64_t j = 0; j < C2; ++j) {
+      sum += C[i * C2 + j];
+    }
+  }
+  std::cout << sum << std::endl;
   destroy_matrix_in_dram(A);
   destroy_matrix_in_dram(B);
   destroy_matrix_in_dram(C);

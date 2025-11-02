@@ -12,19 +12,21 @@ int main()
 {
   auto master_tt_start = std::chrono::high_resolution_clock::now();
   rapid_handle fam = rapid_initialize();
-  uint64_t num_repeats = 4;
+  uint64_t num_repeats = 4;  /// When dim_size 4096, tile_dim_size 8, num_repeats 2 -> time_exe(s) 49.648
+                             /// When dim_size 4096, tile_dim_size 8, num_repeats 4 -> time_exe(s) 76.3903
+                             /// Not sure why.
 
   std::vector<uint64_t> dim_sizes;
   for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
-//  for (uint64_t dim_size = 1024; dim_size <= 1024; dim_size *= 2) {
+//  for (uint64_t dim_size = 256; dim_size <= 512; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
 //  std::vector<double> gemm_no_tiling_avg_times;
 //  std::vector<double> gemm_tiling_avg_times;
 
   std::vector<uint64_t> tile_dim_sizes;
-//  for (uint64_t tile_dim_size = 128; tile_dim_size <= 2048; tile_dim_size *= 2) {
-  for (uint64_t tile_dim_size = 8; tile_dim_size <= 64; tile_dim_size *= 2) {
+  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
+//  for (uint64_t tile_dim_size = 8; tile_dim_size <= 16; tile_dim_size *= 2) {
     tile_dim_sizes.push_back(tile_dim_size);
   }
 

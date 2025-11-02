@@ -123,6 +123,51 @@ void intialize_thread_v2(std::thread &copy_thread,
                          uint64_t B2_tile,
                          std::atomic<bool> *B_buffer_is_ready);
 
+
+void background_A_process(double *A,
+                          uint64_t A1,
+                          uint64_t A2,
+                          double **A_buffer1,
+                          double **A_buffer2,
+                          uint64_t A1_tile,
+                          uint64_t A2_tile,
+//                          std::atomic<uint64_t> *A_in_use,
+//                          std::atomic<uint64_t> *A_in_after_use,
+                          std::vector<std::atomic<bool> *> &A_buffer_is_ready_list,
+                          uint64_t num_workers);
+void background_B_process(uint64_t A1,
+                          uint64_t A2,
+                          uint64_t A1_tile,
+                          uint64_t A2_tile,
+                          double *B,
+                          uint64_t B1,
+                          uint64_t B2,
+                          double **B_buffer1,
+                          double **B_buffer2,
+                          uint64_t B1_tile,
+                          uint64_t B2_tile,
+                          std::atomic<bool> *B_buffer_is_ready,
+                          uint64_t j_start,
+                          uint64_t num_local_j_tiles);
+void compute_worker(uint64_t A1,
+                    uint64_t A2,
+                    uint64_t B1,
+                    uint64_t B2,
+                    double **A_buffer1,
+                    uint64_t A1_tile,
+                    uint64_t A2_tile,
+//                    std::atomic<uint64_t> *A_in_use,
+//                    std::atomic<uint64_t> *A_in_after_use,
+                    std::atomic<bool> *A_buffer_is_ready,
+                    double **B_buffer1,
+                    uint64_t B1_tile,
+                    uint64_t B2_tile,
+                    std::atomic<bool> *B_buffer_is_ready,
+                    double *C,
+                    uint64_t j_start,
+                    uint64_t num_local_j_tiles,
+                    uint64_t worker_id);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
