@@ -123,7 +123,9 @@ void intialize_thread_v2(std::thread &copy_thread,
                          uint64_t B2_tile,
                          std::atomic<bool> *B_buffer_is_ready);
 
-
+/// ------------------------------------------
+/// Parallel Double Buffering on jj dimension
+/// ------------------------------------------
 void background_A_process(double *A,
                           uint64_t A1,
                           uint64_t A2,
@@ -167,6 +169,101 @@ void compute_worker(uint64_t A1,
                     uint64_t j_start,
                     uint64_t num_local_j_tiles,
                     uint64_t worker_id);
+
+/// ------------------------------------------
+/// Parallel Double Buffering on ii dimension
+/// ------------------------------------------
+void main_compute_on_ii(uint64_t A1,
+                        uint64_t A2,
+                        uint64_t A1_tile,
+                        uint64_t A2_tile,
+                        double **A_buffer1,
+                        std::atomic<bool> *A_buffer_is_ready,
+                        uint64_t B1,
+                        uint64_t B2,
+                        uint64_t B1_tile,
+                        uint64_t B2_tile,
+                        double **B_buffer1,
+                        std::atomic<bool> *B_buffer_is_ready,
+                        double *C,
+                        uint64_t i_start,
+                        uint64_t num_local_i_tiles);
+
+void aux_copy_on_ii(double *A,
+                    uint64_t A1,
+                    uint64_t A2,
+                    uint64_t A1_tile,
+                    uint64_t A2_tile,
+                    double **A_buffer1,
+                    double **A_buffer2,
+                    std::atomic<bool> *A_buffer_is_ready,
+                    double *B,
+                    uint64_t B1,
+                    uint64_t B2,
+                    uint64_t B1_tile,
+                    uint64_t B2_tile,
+                    double **B_buffer1,
+                    double **B_buffer2,
+                    std::atomic<bool> *B_buffer_is_ready,
+                    uint64_t i_start,
+                    uint64_t num_local_i_tiles);
+
+/// -----------------------------------------------
+/// Parallel Double Buffering, compute works drive
+/// -----------------------------------------------
+void compute_worker_drive(uint64_t A1,
+                          uint64_t A2,
+                          uint64_t A1_tile,
+                          uint64_t A2_tile,
+                          uint64_t *A1_offset_ptr,
+                          uint64_t *A2_offset_ptr,
+                          uint64_t *A_block_rows_ptr,
+                          uint64_t *A_block_cols_ptr,
+                          double **A_buffer1,
+                          std::atomic<bool> *A_buffer_is_ready,
+                          uint64_t B1,
+                          uint64_t B2,
+                          uint64_t B1_tile,
+                          uint64_t B2_tile,
+                          uint64_t *B1_offset_ptr,
+                          uint64_t *B2_offset_ptr,
+                          uint64_t *B_block_rows_ptr,
+                          uint64_t *B_block_cols_ptr,
+                          double **B_buffer1,
+                          std::atomic<bool> *B_buffer_is_ready,
+                          double *C,
+                          uint64_t i_start,
+                          uint64_t num_local_i_tiles,
+                          std::atomic<bool> *is_finished);
+
+void aux_worker_pull(double *A,
+                     uint64_t A1,
+                     uint64_t A2,
+                     uint64_t A1_tile,
+                     uint64_t A2_tile,
+                     std::vector<double *> &A_buffer1s,
+                     std::vector<double *> &A_buffer2s,
+                     std::vector<uint64_t> &A1_offset_list,
+                     std::vector<uint64_t> &A2_offset_list,
+                     std::vector<uint64_t> &A_block_rows_list,
+                     std::vector<uint64_t> &A_block_cols_list,
+                     std::vector<std::atomic<bool> *> &A_buffer_readys,
+                     double *B,
+                     uint64_t B1,
+                     uint64_t B2,
+                     uint64_t B1_tile,
+                     uint64_t B2_tile,
+                     std::vector<double *> &B_buffer1s,
+                     std::vector<double *> &B_buffer2s,
+                     std::vector<uint64_t> &B1_offset_list,
+                     std::vector<uint64_t> &B2_offset_list,
+                     std::vector<uint64_t> &B_block_rows_list,
+                     std::vector<uint64_t> &B_block_cols_list,
+                     std::vector<std::atomic<bool> *> &B_buffer_readys,
+                     uint64_t compute_worker_start,
+                     uint64_t num_local_compute_worker,
+                     std::vector<std::atomic<bool> *> &compute_worker_finished);
+
 
 #ifdef __cplusplus
 extern "C" {
