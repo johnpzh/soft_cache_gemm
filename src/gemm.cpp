@@ -821,11 +821,11 @@ void gemm_v10_doublebuffer_parallel_ii(
     num_workers = 1;
   }
   uint64_t num_i_tiles = (A1 + A1_tile - 1) / A1_tile;
-  uint64_t tiles_per_workers_base = num_i_tiles / num_workers;
+  uint64_t tiles_per_worker_base = num_i_tiles / num_workers;
   uint64_t remainder = num_i_tiles % num_workers;
-  std::vector<uint64_t> tiles_per_workers_list(num_workers);
+  std::vector<uint64_t> tiles_per_worker_list(num_workers);
   for (uint64_t w = 0; w < num_workers; ++w) {
-    tiles_per_workers_list[w] = tiles_per_workers_base + (w < remainder ? 1 : 0);
+    tiles_per_worker_list[w] = tiles_per_worker_base + (w < remainder ? 1 : 0);
   }
 
   /// A Buffers
@@ -862,7 +862,7 @@ void gemm_v10_doublebuffer_parallel_ii(
     double **B_buffer2_ptr = &B_buffer2s[w];
     std::atomic<bool> *A_buffer_is_ready = A_buffer_readys[w];
     std::atomic<bool> *B_buffer_is_ready = B_buffer_readys[w];
-    uint64_t num_local_i_tiles = tiles_per_workers_list[w];
+    uint64_t num_local_i_tiles = tiles_per_worker_list[w];
 
     copy_threads[w] = std::thread(aux_copy_on_ii,
                                   A,
@@ -929,11 +929,11 @@ void gemm_v11_doublebuffer_parallel_compute_drive(
     uint64_t num_aux_workers)
 {
   uint64_t num_i_tiles = (A1 + A1_tile - 1) / A1_tile;
-  uint64_t tiles_per_workers_base = num_i_tiles / num_compute_workers;
+  uint64_t tiles_per_worker_base = num_i_tiles / num_compute_workers;
   uint64_t remainder = num_i_tiles % num_compute_workers;
-  std::vector<uint64_t> tiles_per_workers_list(num_compute_workers);
+  std::vector<uint64_t> tiles_per_worker_list(num_compute_workers);
   for (uint64_t w = 0; w < num_compute_workers; ++w) {
-    tiles_per_workers_list[w] = tiles_per_workers_base + (w < remainder ? 1 : 0);
+    tiles_per_worker_list[w] = tiles_per_worker_base + (w < remainder ? 1 : 0);
   }
 
   /// A Buffers
@@ -987,7 +987,7 @@ void gemm_v11_doublebuffer_parallel_compute_drive(
     double **B_buffer1_ptr = &B_buffer1s[w];
     std::atomic<bool> *A_buffer_is_ready = A_buffer_readys[w];
     std::atomic<bool> *B_buffer_is_ready = B_buffer_readys[w];
-    uint64_t num_local_i_tiles = tiles_per_workers_list[w];
+    uint64_t num_local_i_tiles = tiles_per_worker_list[w];
     uint64_t *A1_offset_ptr = &A1_offset_list[w];
     uint64_t *A2_offset_ptr = &A2_offset_list[w];
     uint64_t *A_block_rows_ptr = &A_block_rows_list[w];
@@ -1030,7 +1030,7 @@ void gemm_v11_doublebuffer_parallel_compute_drive(
 
   uint64_t compute_worker_start = 0;
   for (uint64_t w = 0; w < num_aux_workers; ++w) {
-    uint64_t num_local_compute_worker = compute_per_aux_list[w];
+    uint64_t num_local_compute_workers = compute_per_aux_list[w];
 
     aux_threads[w] = std::thread(aux_worker_pull,
                                  A,
@@ -1058,10 +1058,10 @@ void gemm_v11_doublebuffer_parallel_compute_drive(
                                  std::ref(B_block_cols_list),
                                  std::ref(B_buffer_readys),
                                  compute_worker_start,
-                                 num_local_compute_worker,
+                                 num_local_compute_workers,
                                  std::ref(compute_worker_finished));
 
-    compute_worker_start += num_local_compute_worker;
+    compute_worker_start += num_local_compute_workers;
   }
 
   /// Join all workers

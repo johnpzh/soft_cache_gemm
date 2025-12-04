@@ -16,13 +16,13 @@ int main()
 {
   auto master_tt_start = std::chrono::high_resolution_clock::now();
   rapid_handle fam = rapid_initialize();
-  uint64_t num_repeats = 10;  /// When dim_size 4096, tile_dim_size 8, num_repeats 2 -> time_exe(s) 49.648
+  uint64_t num_repeats = 1;  /// When dim_size 4096, tile_dim_size 8, num_repeats 2 -> time_exe(s) 49.648
   /// When dim_size 4096, tile_dim_size 8, num_repeats 4 -> time_exe(s) 76.3903
   /// Not sure why.
 
   std::vector<uint64_t> dim_sizes;
-  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
-//  for (uint64_t dim_size = 8; dim_size <= 512; dim_size *= 2) {
+//  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
+  for (uint64_t dim_size = 4096; dim_size <= 16384; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
 //  std::vector<double> gemm_no_tiling_avg_times;
@@ -35,13 +35,19 @@ int main()
   }
 
   std::vector<uint64_t> num_workers_list;
-  for (uint64_t w = 1; w <= 16; w *= 2) {
-    num_workers_list.push_back(w);  /// (2*w + 1) threads
-  }
-  num_workers_list.push_back(27);  /// (54 + 1) threads
+//  for (uint64_t w = 1; w <= 32; w *= 2) {
+//    if (w == 32) {
+//      num_workers_list.push_back(27);
+//    }
+//    num_workers_list.push_back(w);  /// (2*w + 1) threads
+//  }
+//  num_workers_list.push_back(54);
+
 //  for (uint64_t w = 8; w <= 8; w *= 2) {
 //    num_workers_list.push_back(w);  /// (2*w + 1) threads
 //  }
+  num_workers_list.push_back(32);
+  num_workers_list.push_back(54);
 
 //  std::unordered_map<uint64_t, std::vector<double>> gemm_tiling_avg_times_table;
   for (uint64_t dim_size : dim_sizes) {
@@ -129,7 +135,7 @@ int main()
     std::string collect_filename;
     {
       std::stringstream ss;
-      ss << "output.gemm.fam.collection.matrix-size-" << dim_size << ".buffer-sizes.num-workers.parallel-jj.csv";
+      ss << "output.gemm.fam.collection.matrix-size-" << dim_size << ".buffer-sizes.num-workers.parallel-ii.csv";
       collect_filename = ss.str();
     }
     std::ofstream fout;

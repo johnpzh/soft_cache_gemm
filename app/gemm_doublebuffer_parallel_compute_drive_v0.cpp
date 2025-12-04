@@ -10,38 +10,45 @@
 #include <string.h>
 #include <unordered_map>
 #include "gemm.h"
-//#include "rapid.h"
+#include "rapid.h"
 
 int main()
 {
   auto master_tt_start = std::chrono::high_resolution_clock::now();
-//  rapid_handle fam = rapid_initialize();
+  rapid_handle fam = rapid_initialize();
   uint64_t num_repeats = 1;  /// When dim_size 4096, tile_dim_size 8, num_repeats 2 -> time_exe(s) 49.648
   /// When dim_size 4096, tile_dim_size 8, num_repeats 4 -> time_exe(s) 76.3903
   /// Not sure why.
 
   std::vector<uint64_t> dim_sizes;
 //  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
-  for (uint64_t dim_size = 8; dim_size <= 8192; dim_size *= 2) {
+  for (uint64_t dim_size = 4096; dim_size <= 16384; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
 //  std::vector<double> gemm_no_tiling_avg_times;
 //  std::vector<double> gemm_tiling_avg_times;
 
   std::vector<uint64_t> tile_dim_sizes;
-//  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
-  for (uint64_t tile_dim_size = 8; tile_dim_size <= 8; tile_dim_size *= 2) {
+  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
+//  for (uint64_t tile_dim_size = 8; tile_dim_size <= 8; tile_dim_size *= 2) {
     tile_dim_sizes.push_back(tile_dim_size);
   }
 
   std::vector<uint64_t> num_compute_workers_list;
-//  for (uint64_t w = 1; w <= 32; w *= 2) {
+//  for (uint64_t w = 1; w <= 64; w *= 2) {
+//    if (w == 32) {
+//      num_compute_workers_list.push_back(27);
+//    } else if (w == 64) {
+//      num_compute_workers_list.push_back(54);
+//    }
 //    num_compute_workers_list.push_back(w);  /// (2*w + 1 + 1) threads
 //  }
-//  num_compute_workers_list.push_back(54);  /// (54 + 1 + 1) threads
-  for (uint64_t w = 8; w <= 8; w *= 2) {
-    num_compute_workers_list.push_back(w);  /// (2*w + 1) threads
-  }
+//  num_compute_workers_list.push_back(110);  /// (110 + 1 + 1) threads
+
+//  for (uint64_t w = 8; w <= 8; w *= 2) {
+//    num_compute_workers_list.push_back(w);  /// (2*w + 1) threads
+//  }
+  num_compute_workers_list.push_back(54);
   uint64_t num_aux_worker = 1;
 
 //  std::unordered_map<uint64_t, std::vector<double>> gemm_tiling_avg_times_table;
@@ -52,12 +59,12 @@ int main()
     uint64_t B2 = dim_size;
     uint64_t C1 = A1;
     uint64_t C2 = B2;
-//    double *A = create_matrix_in_fam(fam, A1, A2, 1.1);
-//    double *B = create_matrix_in_fam(fam, B1, B2, 2.2);
-//    double *C = create_matrix_in_fam(fam, C1, C2);
-    double *A = create_matrix_in_dram(A1, A2, 1.1);
-    double *B = create_matrix_in_dram(B1, B2, 2.2);
-    double *C = create_matrix_in_dram(C1, C2);
+    double *A = create_matrix_in_fam(fam, A1, A2, 1.1);
+    double *B = create_matrix_in_fam(fam, B1, B2, 2.2);
+    double *C = create_matrix_in_fam(fam, C1, C2);
+//    double *A = create_matrix_in_dram(A1, A2, 1.1);
+//    double *B = create_matrix_in_dram(B1, B2, 2.2);
+//    double *C = create_matrix_in_dram(C1, C2);
 
     /// Tiling
 //    uint64_t tile_dim_size = 512;
@@ -131,7 +138,7 @@ int main()
     std::string collect_filename;
     {
       std::stringstream ss;
-      ss << "output.gemm.fam.collection.matrix-size-" << dim_size << ".buffer-sizes.num-workers.parallel-jj.csv";
+      ss << "output.gemm.fam.collection.matrix-size-" << dim_size << ".buffer-sizes.num-workers.parallel-compute-drive.csv";
       collect_filename = ss.str();
     }
     std::ofstream fout;
@@ -154,12 +161,12 @@ int main()
       std::cerr << "Error: cannot open file " << collect_filename << std::endl;
     }
 
-//    destroy_matrix_in_fam(fam, A);
-//    destroy_matrix_in_fam(fam, B);
-//    destroy_matrix_in_fam(fam, C);
-    destroy_matrix_in_dram(A);
-    destroy_matrix_in_dram(B);
-    destroy_matrix_in_dram(C);
+    destroy_matrix_in_fam(fam, A);
+    destroy_matrix_in_fam(fam, B);
+    destroy_matrix_in_fam(fam, C);
+//    destroy_matrix_in_dram(A);
+//    destroy_matrix_in_dram(B);
+//    destroy_matrix_in_dram(C);
   } /// dim_sizes
 
   auto master_tt_end = std::chrono::high_resolution_clock::now();

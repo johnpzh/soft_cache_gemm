@@ -60,6 +60,6 @@ target_link_libraries(gemm.plain.dram PRIVATE simplegemm)
 #add_executable(gemm_doublebuffer_parallel_ii_v0 app/gemm_doublebuffer_parallel_ii_v0.cpp)
 #target_link_libraries(gemm_doublebuffer_parallel_ii_v0 PRIVATE simplegemm)
 
-# GEMM Double Buffering Parallel compute driver
-add_executable(gemm_doublebuffer_parallel_compute_drive_v0 app/gemm_doublebuffer_parallel_compute_drive_v0.cpp)
-target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0 PRIVATE simplegemm)
+## GEMM Double Buffering Parallel compute driver
+#add_executable(gemm_doublebuffer_parallel_compute_drive_v0 app/gemm_doublebuffer_parallel_compute_drive_v0.cpp)
+#target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0 PRIVATE simplegemm)
