@@ -6,21 +6,21 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 include_directories("include")
 
-## Rapid Library
-#set(CMAKE_PREFIX_PATH "/share/micron/rapid/install/gcc-release")
-#find_package(rapid CONFIG REQUIRED)
-#include_directories("/share/micron/rapid/install/gcc-release/include")
-#link_directories("/share/micron/rapid/install/gcc-release/lib64")
+# Rapid Library
+set(CMAKE_PREFIX_PATH "/share/micron/rapid/install/gcc-release")
+find_package(rapid CONFIG REQUIRED)
+include_directories("/share/micron/rapid/install/gcc-release/include")
+link_directories("/share/micron/rapid/install/gcc-release/lib64")
 
-## OpenMP Library
-#find_package(OpenMP REQUIRED)
+# OpenMP Library
+find_package(OpenMP REQUIRED)
 
 add_library(softcache src/soft_cache.cpp)
 add_library(background_thread src/background_thread.cpp)
 add_library(simplegemm src/gemm.cpp)
-#target_link_libraries(simplegemm PUBLIC softcache background_thread rapid::rapid OpenMP::OpenMP_CXX)
+target_link_libraries(simplegemm PUBLIC softcache background_thread rapid::rapid OpenMP::OpenMP_CXX)
 #target_link_libraries(simplegemm PUBLIC softcache background_thread rapid::rapid)
-target_link_libraries(simplegemm PUBLIC softcache background_thread)
+#target_link_libraries(simplegemm PUBLIC softcache background_thread)
 
 
 # GEMM Test correctness
@@ -60,6 +60,10 @@ target_link_libraries(gemm.plain.dram PRIVATE simplegemm)
 #add_executable(gemm_doublebuffer_parallel_ii_v0 app/gemm_doublebuffer_parallel_ii_v0.cpp)
 #target_link_libraries(gemm_doublebuffer_parallel_ii_v0 PRIVATE simplegemm)
 
-## GEMM Double Buffering Parallel compute driver
-#add_executable(gemm_doublebuffer_parallel_compute_drive_v0 app/gemm_doublebuffer_parallel_compute_drive_v0.cpp)
-#target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0 PRIVATE simplegemm)
+# GEMM Double Buffering Parallel compute driver
+add_executable(gemm_doublebuffer_parallel_compute_drive_v0 app/gemm_doublebuffer_parallel_compute_drive_v0.cpp)
+target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0 PRIVATE simplegemm)
+
+## GEMM Double Buffering Parallel compute driver v1 OpenMP parallel for loop
+add_executable(gemm_doublebuffer_parallel_compute_drive_v1_omp app/gemm_doublebuffer_parallel_compute_drive_v1_omp.cpp)
+target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v1_omp PRIVATE simplegemm OpenMP::OpenMP_CXX)

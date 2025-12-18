@@ -8,8 +8,7 @@
 #include <vector>
 #include <fstream>
 #include "soft_cache.h"
-//#include <omp.h>
-//#include "rapid.h"
+#include "rapid.h"
 
 //--------
 // Matrix
@@ -17,8 +16,8 @@
 
 double *create_matrix_in_dram(uint64_t num_rows, uint64_t num_cols, double val=0);
 void destroy_matrix_in_dram(double *matrix);
-//double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val=0);
-//void destroy_matrix_in_fam(rapid_handle fam, double *matrix);
+double *create_matrix_in_fam(rapid_handle fam, uint64_t num_rows, uint64_t num_cols, double val=0);
+void destroy_matrix_in_fam(rapid_handle fam, double *matrix);
 void print_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols);
 double sum_matrix(double *matrix, uint64_t num_rows, uint64_t num_cols);
 
@@ -76,6 +75,17 @@ void gemm_v11_doublebuffer_parallel_compute_drive(
     uint64_t num_compute_workers,
     uint64_t num_aux_workers);
 
+void gemm_v12_doublebuffer_sequential_compute_drive(
+    double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+    double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+    double *C);
+
+void gemm_v13_doublebuffer_parallel_compute_drive_v1_omp(
+    double *A, uint64_t A1, uint64_t A2, uint64_t A1_tile, uint64_t A2_tile,
+    double *B, uint64_t B1, uint64_t B2, uint64_t B1_tile, uint64_t B2_tile,
+    double *C,
+    uint64_t num_compute_workers,
+    uint64_t num_aux_workers);
 //-----------
 // Utilities
 //-----------

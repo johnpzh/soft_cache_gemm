@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
+#include <omp.h>
 #include "gemm.h"
 #include "rapid.h"
 
@@ -23,42 +24,30 @@ int main()
   std::vector<uint64_t> dim_sizes;
 //  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
   for (uint64_t dim_size = 4096; dim_size <= 16384; dim_size *= 2) {
-//  for (uint64_t dim_size = 5; dim_size <= 16; dim_size *= 2) {
+//  for (uint64_t dim_size = 64; dim_size <= 256; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
 //  std::vector<double> gemm_no_tiling_avg_times;
 //  std::vector<double> gemm_tiling_avg_times;
 
   std::vector<uint64_t> tile_dim_sizes;
-//  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
-  for (uint64_t tile_dim_size = 128; tile_dim_size <= 512; tile_dim_size *= 2) {
-//  for (uint64_t tile_dim_size = 2; tile_dim_size <= 2; tile_dim_size *= 2) {
+  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
+//  for (uint64_t tile_dim_size = 128; tile_dim_size <= 512; tile_dim_size *= 2) {
+//  for (uint64_t tile_dim_size = 4; tile_dim_size <= 8; tile_dim_size *= 2) {
     tile_dim_sizes.push_back(tile_dim_size);
   }
 
   std::vector<uint64_t> num_compute_workers_list;
-//  for (uint64_t w = 1; w <= 64; w *= 2) {
-//    if (w == 32) {
-//      num_compute_workers_list.push_back(27);
-//    } else if (w == 64) {
-//      num_compute_workers_list.push_back(54);
-//    }
-//    num_compute_workers_list.push_back(w);  /// (2*w + 1 + 1) threads
+//  for (uint64_t w = 4; w <=8; w *= 2) {
+//    num_compute_workers_list.push_back(w);
 //  }
-//  num_compute_workers_list.push_back(110);  /// (110 + 1 + 1) threads
-
-//  for (uint64_t w = 8; w <= 8; w *= 2) {
-//    num_compute_workers_list.push_back(w);  /// (2*w + 1) threads
-//  }
-//  num_compute_workers_list.push_back(54);
-
   for (uint64_t w = 1; w <=16; w *= 2) {
     num_compute_workers_list.push_back(w - 1);
   }
   num_compute_workers_list.push_back(27);
   num_compute_workers_list.push_back(31);
   num_compute_workers_list.push_back(55);
-//  num_compute_workers_list.push_back(0);
+  num_compute_workers_list.push_back(111);
   uint64_t num_aux_worker = 1;
 
 //  std::unordered_map<uint64_t, std::vector<double>> gemm_tiling_avg_times_table;
@@ -92,10 +81,10 @@ int main()
 
 
       for (uint64_t num_compute_workers: num_compute_workers_list) {
+        omp_set_num_threads((int) num_compute_workers);
         std::vector<double> tiling_exe_times;
         for (uint64_t r_i = 0; r_i < num_repeats; ++r_i) {
           memset(C, 0, C1 * C2 * sizeof(double));
-
 
 //          /// Correctness reference
 //          auto baseline_tt_start = std::chrono::high_resolution_clock::now();
@@ -111,7 +100,7 @@ int main()
           /// Kernel
           auto tt_start = std::chrono::high_resolution_clock::now();
           if (num_compute_workers > 0) {
-            gemm_v11_doublebuffer_parallel_compute_drive(
+            gemm_v13_doublebuffer_parallel_compute_drive_v1_omp(
                 A, A1, A2, A1_tile, A2_tile,
                 B, B1, B2, B1_tile, B2_tile,
                 C,
