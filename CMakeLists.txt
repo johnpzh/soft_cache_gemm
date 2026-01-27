@@ -64,6 +64,10 @@ target_link_libraries(gemm.plain.dram PRIVATE simplegemm)
 add_executable(gemm_doublebuffer_parallel_compute_drive_v0 app/gemm_doublebuffer_parallel_compute_drive_v0.cpp)
 target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0 PRIVATE simplegemm)
 
+# GEMM Double Buffering Parallel compute driver with Command Option
+add_executable(gemm_doublebuffer_parallel_compute_drive_v0.command_option app/gemm_doublebuffer_parallel_compute_drive_v0.command_option.cpp)
+target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v0.command_option PRIVATE simplegemm)
+
 ## GEMM Double Buffering Parallel compute driver v1 OpenMP parallel for loop
 add_executable(gemm_doublebuffer_parallel_compute_drive_v1_omp app/gemm_doublebuffer_parallel_compute_drive_v1_omp.cpp)
 target_link_libraries(gemm_doublebuffer_parallel_compute_drive_v1_omp PRIVATE simplegemm OpenMP::OpenMP_CXX)

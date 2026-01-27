@@ -22,7 +22,7 @@ int main()
 
   std::vector<uint64_t> dim_sizes;
 //  for (uint64_t dim_size = 4096; dim_size <= 8192; dim_size *= 2) {
-  for (uint64_t dim_size = 4096; dim_size <= 16384; dim_size *= 2) {
+  for (uint64_t dim_size = 16384; dim_size <= 16384; dim_size *= 2) {
 //  for (uint64_t dim_size = 5; dim_size <= 16; dim_size *= 2) {
     dim_sizes.push_back(dim_size);
   }
@@ -31,7 +31,7 @@ int main()
 
   std::vector<uint64_t> tile_dim_sizes;
 //  for (uint64_t tile_dim_size = 8; tile_dim_size <= 2048; tile_dim_size *= 2) {
-  for (uint64_t tile_dim_size = 128; tile_dim_size <= 512; tile_dim_size *= 2) {
+  for (uint64_t tile_dim_size = 32; tile_dim_size <= 512; tile_dim_size *= 2) {
 //  for (uint64_t tile_dim_size = 2; tile_dim_size <= 2; tile_dim_size *= 2) {
     tile_dim_sizes.push_back(tile_dim_size);
   }
